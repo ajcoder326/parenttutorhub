@@ -5,55 +5,56 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const Login = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [error, setError] = useState("");
-  const { toast } = useToast();
 
   useEffect(() => {
+    // Check if user is already logged in and has a profile
+    if (user && profile) {
+      handleRedirect(profile.role);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN') {
-        // Fetch the user's profile to get their role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session?.user?.id)
-          .single();
+        if (session?.user?.id) {
+          // Fetch the user's profile to get their role
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
 
-        toast({
-          title: "Success",
-          description: "Successfully signed in!",
-        });
+          if (profileError) {
+            console.error('Error fetching profile:', profileError);
+            setError("Error fetching user profile");
+            return;
+          }
 
-        // Redirect based on role
-        if (profile?.role === 'tutor') {
-          navigate("/tutor/dashboard");
-        } else if (profile?.role === 'parent') {
-          navigate("/parent/dashboard");
-        } else {
-          navigate("/");
+          if (profileData) {
+            toast.success("Successfully signed in!");
+            handleRedirect(profileData.role);
+          }
         }
-      } else if (event === 'SIGNED_OUT') {
-        setError("");
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, toast]);
+  }, [user, profile, navigate]);
 
-  if (user) {
-    if (profile?.role === 'tutor') {
-      navigate("/tutor/dashboard");
-    } else if (profile?.role === 'parent') {
-      navigate("/parent/dashboard");
+  const handleRedirect = (role?: string | null) => {
+    if (role === 'tutor') {
+      navigate('/tutor/dashboard');
+    } else if (role === 'parent') {
+      navigate('/parent/dashboard');
     } else {
-      navigate("/");
+      // If no role is set, redirect to home page
+      navigate('/');
     }
-    return null;
-  }
+  };
 
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
