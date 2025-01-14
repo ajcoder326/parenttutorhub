@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X, LogOut, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -18,6 +18,15 @@ const Navbar = () => {
     } catch (error) {
       toast.error("Error signing out");
     }
+  };
+
+  const getDashboardLink = () => {
+    if (profile?.role === 'tutor') {
+      return "/tutor/dashboard";
+    } else if (profile?.role === 'parent') {
+      return "/parent/dashboard";
+    }
+    return null;
   };
 
   return (
@@ -36,14 +45,26 @@ const Navbar = () => {
             <a href="#faqs" className="text-gray-700 hover:text-primary transition-colors">FAQs</a>
             <a href="#contact" className="text-gray-700 hover:text-primary transition-colors">Contact</a>
             {user ? (
-              <Button
-                variant="ghost"
-                className="text-gray-700 hover:text-primary"
-                onClick={handleSignOut}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              <>
+                {getDashboardLink() && (
+                  <Button
+                    variant="ghost"
+                    className="text-gray-700 hover:text-primary"
+                    onClick={() => navigate(getDashboardLink()!)}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="text-gray-700 hover:text-primary"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </>
             ) : (
               <Button
                 variant="ghost"
@@ -99,17 +120,32 @@ const Navbar = () => {
               Contact
             </a>
             {user ? (
-              <Button
-                variant="ghost"
-                className="w-full text-left px-3 py-2 text-gray-700 hover:text-primary"
-                onClick={() => {
-                  handleSignOut();
-                  setIsOpen(false);
-                }}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              <>
+                {getDashboardLink() && (
+                  <Button
+                    variant="ghost"
+                    className="w-full text-left px-3 py-2 text-gray-700 hover:text-primary"
+                    onClick={() => {
+                      navigate(getDashboardLink()!);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="w-full text-left px-3 py-2 text-gray-700 hover:text-primary"
+                  onClick={() => {
+                    handleSignOut();
+                    setIsOpen(false);
+                  }}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </>
             ) : (
               <Button
                 variant="ghost"

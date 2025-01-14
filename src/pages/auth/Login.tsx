@@ -9,19 +9,33 @@ import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [error, setError] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN') {
+        // Fetch the user's profile to get their role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session?.user?.id)
+          .single();
+
         toast({
           title: "Success",
           description: "Successfully signed in!",
         });
-        navigate("/");
+
+        // Redirect based on role
+        if (profile?.role === 'tutor') {
+          navigate("/tutor/dashboard");
+        } else if (profile?.role === 'parent') {
+          navigate("/parent/dashboard");
+        } else {
+          navigate("/");
+        }
       } else if (event === 'SIGNED_OUT') {
         setError("");
       }
@@ -30,16 +44,21 @@ const Login = () => {
     return () => subscription.unsubscribe();
   }, [navigate, toast]);
 
-  // Redirect if already logged in
   if (user) {
-    navigate("/");
+    if (profile?.role === 'tutor') {
+      navigate("/tutor/dashboard");
+    } else if (profile?.role === 'parent') {
+      navigate("/parent/dashboard");
+    } else {
+      navigate("/");
+    }
     return null;
   }
 
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-        <h1 className="text-2xl font-bold text-primary mb-6 text-center">Welcome to TutorConnect</h1>
+      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-2xl font-bold text-center mb-6">Welcome Back</h1>
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
@@ -47,19 +66,9 @@ const Login = () => {
         )}
         <Auth
           supabaseClient={supabase}
-          appearance={{
-            theme: ThemeSupa,
-            variables: {
-              default: {
-                colors: {
-                  brand: '#8B4513',
-                  brandAccent: '#A0522D',
-                }
-              }
-            }
-          }}
+          appearance={{ theme: ThemeSupa }}
+          theme="light"
           providers={[]}
-          redirectTo={window.location.origin}
         />
       </div>
     </div>
