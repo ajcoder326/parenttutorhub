@@ -13,48 +13,67 @@ const Login = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Check if user is already logged in and has a profile
-    if (user && profile) {
-      handleRedirect(profile.role);
-    }
+    const checkAndRedirect = async () => {
+      if (user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          setError("Error fetching user profile");
+          return;
+        }
+
+        if (profileData) {
+          handleRedirect(profileData.role);
+        }
+      }
+    };
+
+    checkAndRedirect();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        if (session?.user?.id) {
-          // Fetch the user's profile to get their role
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
+      if (event === 'SIGNED_IN' && session?.user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
 
-          if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            setError("Error fetching user profile");
-            return;
-          }
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          setError("Error fetching user profile");
+          return;
+        }
 
-          if (profileData) {
-            toast.success("Successfully signed in!");
-            handleRedirect(profileData.role);
-          }
+        if (profileData) {
+          toast.success("Successfully signed in!");
+          handleRedirect(profileData.role);
         }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [user, profile, navigate]);
+  }, [user, navigate]);
 
   const handleRedirect = (role?: string | null) => {
+    console.log('Redirecting with role:', role); // Debug log
     if (role === 'tutor') {
-      navigate('/tutor/dashboard');
+      navigate('/tutor/dashboard', { replace: true });
     } else if (role === 'parent') {
-      navigate('/parent/dashboard');
+      navigate('/parent/dashboard', { replace: true });
     } else {
-      // If no role is set, redirect to home page
-      navigate('/');
+      navigate('/', { replace: true });
     }
   };
+
+  // If already logged in, show loading
+  if (user) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
