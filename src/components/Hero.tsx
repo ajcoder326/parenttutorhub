@@ -1,6 +1,19 @@
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Hero = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleJoinClick = (role: 'parent' | 'tutor') => {
+    if (user) {
+      navigate(role === 'parent' ? '/parent/dashboard' : '/tutor/dashboard');
+    } else {
+      navigate('/signup');
+    }
+  };
+
   return (
     <div className="min-h-screen pt-16 bg-secondary">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -15,15 +28,15 @@ const Hero = () => {
           <div className="mt-10 flex justify-center gap-x-6">
             <Button
               className="bg-primary hover:bg-primary-light text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
-              onClick={() => console.log("Join as Parent clicked")}
+              onClick={() => handleJoinClick('parent')}
             >
-              Join as Parent
+              {user ? 'Parent Dashboard' : 'Join as Parent'}
             </Button>
             <Button
               className="bg-accent hover:bg-accent-dark text-primary px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
-              onClick={() => console.log("Join as Tutor clicked")}
+              onClick={() => handleJoinClick('tutor')}
             >
-              Join as Tutor
+              {user ? 'Tutor Dashboard' : 'Join as Tutor'}
             </Button>
           </div>
         </div>
