@@ -27,7 +27,6 @@ const Login = () => {
             .single();
 
           console.log("Profile data:", profileData);
-          console.log("Profile error:", profileError);
 
           if (profileError) {
             console.error('Profile fetch error:', profileError);
@@ -38,11 +37,7 @@ const Login = () => {
 
           if (profileData?.role) {
             console.log('Redirecting to dashboard for role:', profileData.role);
-            if (profileData.role === 'tutor') {
-              window.location.href = '/tutor/dashboard';
-            } else if (profileData.role === 'parent') {
-              window.location.href = '/parent/dashboard';
-            }
+            navigate(profileData.role === 'tutor' ? '/tutor/dashboard' : '/parent/dashboard');
           } else {
             console.log('No role found for user');
             setIsLoading(false);
@@ -80,12 +75,7 @@ const Login = () => {
 
           if (profileData?.role) {
             toast.success("Successfully signed in!");
-            console.log('Redirecting after sign in with role:', profileData.role);
-            if (profileData.role === 'tutor') {
-              window.location.href = '/tutor/dashboard';
-            } else if (profileData.role === 'parent') {
-              window.location.href = '/parent/dashboard';
-            }
+            navigate(profileData.role === 'tutor' ? '/tutor/dashboard' : '/parent/dashboard');
           }
         } catch (err) {
           console.error('Sign in error:', err);
@@ -97,7 +87,7 @@ const Login = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   if (isLoading) {
     return (
