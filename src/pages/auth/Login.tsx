@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -16,8 +16,8 @@ const Login = () => {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
-        // Get current session
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("Current session:", session);
         
         if (session?.user) {
           const { data: profileData, error: profileError } = await supabase
@@ -25,6 +25,9 @@ const Login = () => {
             .select('role')
             .eq('id', session.user.id)
             .single();
+
+          console.log("Profile data:", profileData);
+          console.log("Profile error:", profileError);
 
           if (profileError) {
             console.error('Profile fetch error:', profileError);
@@ -34,8 +37,12 @@ const Login = () => {
           }
 
           if (profileData?.role) {
-            console.log('Redirecting user with role:', profileData.role);
-            handleRedirect(profileData.role);
+            console.log('Redirecting to dashboard for role:', profileData.role);
+            if (profileData.role === 'tutor') {
+              window.location.href = '/tutor/dashboard';
+            } else if (profileData.role === 'parent') {
+              window.location.href = '/parent/dashboard';
+            }
           } else {
             console.log('No role found for user');
             setIsLoading(false);
@@ -53,7 +60,7 @@ const Login = () => {
     checkAuthAndRedirect();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
+      console.log('Auth state changed:', event, session);
       
       if (event === 'SIGNED_IN' && session?.user) {
         try {
@@ -62,6 +69,8 @@ const Login = () => {
             .select('role')
             .eq('id', session.user.id)
             .single();
+
+          console.log("Profile data after sign in:", profileData);
 
           if (profileError) {
             console.error('Profile fetch error:', profileError);
@@ -72,7 +81,11 @@ const Login = () => {
           if (profileData?.role) {
             toast.success("Successfully signed in!");
             console.log('Redirecting after sign in with role:', profileData.role);
-            handleRedirect(profileData.role);
+            if (profileData.role === 'tutor') {
+              window.location.href = '/tutor/dashboard';
+            } else if (profileData.role === 'parent') {
+              window.location.href = '/parent/dashboard';
+            }
           }
         } catch (err) {
           console.error('Sign in error:', err);
@@ -84,18 +97,7 @@ const Login = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
-
-  const handleRedirect = (role: string) => {
-    console.log('Handling redirect for role:', role);
-    if (role === 'tutor') {
-      window.location.href = '/tutor/dashboard';
-    } else if (role === 'parent') {
-      window.location.href = '/parent/dashboard';
-    } else {
-      window.location.href = '/';
-    }
-  };
+  }, []);
 
   if (isLoading) {
     return (
