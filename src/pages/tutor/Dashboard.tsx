@@ -42,6 +42,44 @@ const TutorDashboard = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("parent_requests")
+        .select("*")
+        .eq("status", "pending");
+
+      if (error) {
+        console.error("Error fetching requests:", error);
+        toast.error("Failed to load requests");
+      } else {
+        setRequests(data || []);
+      }
+    } catch (error) {
+      console.error("Error in fetchRequests:", error);
+      toast.error("An error occurred while loading requests");
+    }
+  };
+
+  const fetchMatches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("matches")
+        .select("*")
+        .eq("tutor_id", user?.id);
+
+      if (error) {
+        console.error("Error fetching matches:", error);
+        toast.error("Failed to load matches");
+      } else {
+        setMatches(data || []);
+      }
+    } catch (error) {
+      console.error("Error in fetchMatches:", error);
+      toast.error("An error occurred while loading matches");
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -70,29 +108,8 @@ const TutorDashboard = () => {
           setTutorProfile(profileData);
         }
 
-        const { data: requestsData, error: requestsError } = await supabase
-          .from("parent_requests")
-          .select("*")
-          .eq("status", "pending");
-
-        if (requestsError) {
-          console.error("Error fetching requests:", requestsError);
-          toast.error("Failed to load requests");
-        } else {
-          setRequests(requestsData || []);
-        }
-
-        const { data: matchesData, error: matchesError } = await supabase
-          .from("matches")
-          .select("*")
-          .eq("tutor_id", user.id);
-
-        if (matchesError) {
-          console.error("Error fetching matches:", matchesError);
-          toast.error("Failed to load matches");
-        } else {
-          setMatches(matchesData || []);
-        }
+        // Fetch requests and matches
+        await Promise.all([fetchRequests(), fetchMatches()]);
       } catch (error) {
         console.error("Error in fetchTutorData:", error);
         toast.error("An error occurred while loading the dashboard");
@@ -103,6 +120,30 @@ const TutorDashboard = () => {
 
     fetchTutorData();
   }, [user, profile, navigate]);
+
+  const handleRequestResponse = async (requestId: string, accept: boolean) => {
+    const { error } = await supabase.from("matches").insert([
+      {
+        request_id: requestId,
+        tutor_id: user?.id,
+        status: accept ? "accepted" : "rejected",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      toast.error("Error responding to request");
+      return;
+    }
+
+    await supabase
+      .from("parent_requests")
+      .update({ status: accept ? "matched" : "rejected" })
+      .eq("id", requestId);
+
+    toast.success(`Request ${accept ? "accepted" : "rejected"} successfully!`);
+    await Promise.all([fetchRequests(), fetchMatches()]);
+  };
 
   if (loading) {
     return (
@@ -130,46 +171,6 @@ const TutorDashboard = () => {
       </div>
     );
   }
-
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase
-      .from("tutor_profiles")
-      .update(profile)
-      .eq("id", user?.id);
-
-    if (error) {
-      toast.error("Error updating profile");
-      return;
-    }
-
-    toast.success("Profile updated successfully!");
-  };
-
-  const handleRequestResponse = async (requestId: string, accept: boolean) => {
-    const { error } = await supabase.from("matches").insert([
-      {
-        request_id: requestId,
-        tutor_id: user?.id,
-        status: accept ? "accepted" : "rejected",
-        created_at: new Date().toISOString(),
-      },
-    ]);
-
-    if (error) {
-      toast.error("Error responding to request");
-      return;
-    }
-
-    await supabase
-      .from("parent_requests")
-      .update({ status: accept ? "matched" : "rejected" })
-      .eq("id", requestId);
-
-    toast.success(`Request ${accept ? "accepted" : "rejected"} successfully!`);
-    fetchRequests();
-    fetchMatches();
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -215,6 +216,10 @@ const TutorDashboard = () => {
                   <p><strong>Budget Range:</strong> ₹{request.budget_min} - ₹{request.budget_max}</p>
                   <p><strong>Location:</strong> {request.location}</p>
                   <p><strong>Requirements:</strong> {request.requirements}</p>
+                  <div className="flex gap-4 mt-2">
+                    <Button onClick={() => handleRequestResponse(request.id, true)}>Accept</Button>
+                    <Button onClick={() => handleRequestResponse(request.id, false)}>Reject</Button>
+                  </div>
                 </div>
               ))
             ) : (
