@@ -11,68 +11,98 @@ const Login = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkAndRedirect = async () => {
-      if (user) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
+    const checkAuthAndRedirect = async () => {
+      try {
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
 
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-          setError("Error fetching user profile");
-          return;
-        }
+          if (profileError) {
+            console.error('Profile fetch error:', profileError);
+            setError("Error fetching user profile");
+            setIsLoading(false);
+            return;
+          }
 
-        if (profileData) {
-          handleRedirect(profileData.role);
+          if (profileData?.role) {
+            console.log('Redirecting user with role:', profileData.role);
+            handleRedirect(profileData.role);
+          } else {
+            console.log('No role found for user');
+            setIsLoading(false);
+          }
+        } else {
+          setIsLoading(false);
         }
+      } catch (err) {
+        console.error('Auth check error:', err);
+        setError("Authentication error");
+        setIsLoading(false);
       }
     };
 
-    checkAndRedirect();
+    checkAuthAndRedirect();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      
       if (event === 'SIGNED_IN' && session?.user) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
 
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-          setError("Error fetching user profile");
-          return;
-        }
+          if (profileError) {
+            console.error('Profile fetch error:', profileError);
+            setError("Error fetching user profile");
+            return;
+          }
 
-        if (profileData) {
-          toast.success("Successfully signed in!");
-          handleRedirect(profileData.role);
+          if (profileData?.role) {
+            toast.success("Successfully signed in!");
+            console.log('Redirecting after sign in with role:', profileData.role);
+            handleRedirect(profileData.role);
+          }
+        } catch (err) {
+          console.error('Sign in error:', err);
+          setError("Error during sign in");
         }
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [user, navigate]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
-  const handleRedirect = (role?: string | null) => {
-    console.log('Redirecting with role:', role); // Debug log
+  const handleRedirect = (role: string) => {
+    console.log('Handling redirect for role:', role);
     if (role === 'tutor') {
-      navigate('/tutor/dashboard', { replace: true });
+      window.location.href = '/tutor/dashboard';
     } else if (role === 'parent') {
-      navigate('/parent/dashboard', { replace: true });
+      window.location.href = '/parent/dashboard';
     } else {
-      navigate('/', { replace: true });
+      window.location.href = '/';
     }
   };
 
-  // If already logged in, show loading
-  if (user) {
-    return <div>Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-secondary flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
   }
 
   return (
