@@ -52,9 +52,10 @@ const TutorDashboard = () => {
       if (error) {
         console.error("Error fetching requests:", error);
         toast.error("Failed to load requests");
-      } else {
-        setRequests(data || []);
+        return;
       }
+
+      setRequests(data || []);
     } catch (error) {
       console.error("Error in fetchRequests:", error);
       toast.error("An error occurred while loading requests");
@@ -71,9 +72,10 @@ const TutorDashboard = () => {
       if (error) {
         console.error("Error fetching matches:", error);
         toast.error("Failed to load matches");
-      } else {
-        setMatches(data || []);
+        return;
       }
+
+      setMatches(data || []);
     } catch (error) {
       console.error("Error in fetchMatches:", error);
       toast.error("An error occurred while loading matches");
@@ -104,11 +106,10 @@ const TutorDashboard = () => {
         if (profileError) {
           console.error("Error fetching tutor profile:", profileError);
           toast.error("Failed to load tutor profile");
-        } else {
-          setTutorProfile(profileData);
+          return;
         }
 
-        // Fetch requests and matches
+        setTutorProfile(profileData);
         await Promise.all([fetchRequests(), fetchMatches()]);
       } catch (error) {
         console.error("Error in fetchTutorData:", error);
@@ -122,27 +123,36 @@ const TutorDashboard = () => {
   }, [user, profile, navigate]);
 
   const handleRequestResponse = async (requestId: string, accept: boolean) => {
-    const { error } = await supabase.from("matches").insert([
-      {
-        request_id: requestId,
-        tutor_id: user?.id,
-        status: accept ? "accepted" : "rejected",
-        created_at: new Date().toISOString(),
-      },
-    ]);
+    try {
+      const { error: matchError } = await supabase.from("matches").insert([
+        {
+          request_id: requestId,
+          tutor_id: user?.id,
+          status: accept ? "accepted" : "rejected",
+        },
+      ]);
 
-    if (error) {
-      toast.error("Error responding to request");
-      return;
+      if (matchError) {
+        toast.error("Error responding to request");
+        return;
+      }
+
+      const { error: requestError } = await supabase
+        .from("parent_requests")
+        .update({ status: accept ? "matched" : "rejected" })
+        .eq("id", requestId);
+
+      if (requestError) {
+        toast.error("Error updating request status");
+        return;
+      }
+
+      toast.success(`Request ${accept ? "accepted" : "rejected"} successfully!`);
+      await Promise.all([fetchRequests(), fetchMatches()]);
+    } catch (error) {
+      console.error("Error in handleRequestResponse:", error);
+      toast.error("An error occurred while processing your response");
     }
-
-    await supabase
-      .from("parent_requests")
-      .update({ status: accept ? "matched" : "rejected" })
-      .eq("id", requestId);
-
-    toast.success(`Request ${accept ? "accepted" : "rejected"} successfully!`);
-    await Promise.all([fetchRequests(), fetchMatches()]);
   };
 
   if (loading) {

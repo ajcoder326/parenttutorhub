@@ -9,6 +9,92 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      matches: {
+        Row: {
+          created_at: string
+          id: string
+          request_id: string | null
+          status: string | null
+          tutor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          request_id?: string | null
+          status?: string | null
+          tutor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          request_id?: string | null
+          status?: string | null
+          tutor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "parent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_tutor_id_fkey"
+            columns: ["tutor_id"]
+            isOneToOne: false
+            referencedRelation: "tutor_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parent_requests: {
+        Row: {
+          budget_max: number | null
+          budget_min: number | null
+          created_at: string
+          grade_level: string
+          id: string
+          location: string | null
+          parent_id: string | null
+          requirements: string | null
+          status: string | null
+          subjects: string[] | null
+        }
+        Insert: {
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string
+          grade_level: string
+          id?: string
+          location?: string | null
+          parent_id?: string | null
+          requirements?: string | null
+          status?: string | null
+          subjects?: string[] | null
+        }
+        Update: {
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string
+          grade_level?: string
+          id?: string
+          location?: string | null
+          parent_id?: string | null
+          requirements?: string | null
+          status?: string | null
+          subjects?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parent_requests_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -41,6 +127,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tutor_profiles: {
+        Row: {
+          bio: string | null
+          created_at: string
+          hourly_rate: number | null
+          id: string
+          qualifications: string[] | null
+          subjects: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          hourly_rate?: number | null
+          id: string
+          qualifications?: string[] | null
+          subjects?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          hourly_rate?: number | null
+          id?: string
+          qualifications?: string[] | null
+          subjects?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutor_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
