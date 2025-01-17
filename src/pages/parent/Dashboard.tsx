@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { ParentRequest, Match, TutorProfile } from "@/types/auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ParentDashboard = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [request, setRequest] = useState<Partial<ParentRequest>>({
     grade_level: "",
     subjects: [],
@@ -20,9 +22,64 @@ const ParentDashboard = () => {
   });
   const [matches, setMatches] = useState<Array<Match & { tutor: TutorProfile }>>([]);
 
+  useEffect(() => {
+    if (user) {
+      fetchExistingRequest();
+    }
+  }, [user]);
+
+  const fetchExistingRequest = async () => {
+    try {
+      const { data: existingRequest, error } = await supabase
+        .from("parent_requests")
+        .select("*")
+        .eq("parent_id", user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (existingRequest) {
+        setRequest(existingRequest);
+        await fetchMatches(existingRequest.id);
+      }
+    } catch (error) {
+      console.error("Error fetching request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load your tutor request",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMatches = async (requestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("matches")
+        .select(`
+          *,
+          tutor:tutor_profiles(*)
+        `)
+        .eq("request_id", requestId);
+
+      if (error) throw error;
+
+      setMatches(data || []);
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load tutor matches",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const { error } = await supabase.from("parent_requests").insert([
@@ -36,47 +93,41 @@ const ParentDashboard = () => {
 
       if (error) throw error;
 
-      toast.success("Request submitted successfully!");
-      // Trigger matchmaking algorithm
-      await findMatches();
+      toast({
+        title: "Success",
+        description: "Request submitted successfully!",
+      });
+      
+      await fetchExistingRequest();
     } catch (error) {
-      toast.error("Error submitting request");
-      console.error(error);
+      console.error("Error submitting request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit request",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const findMatches = async () => {
-    // Fetch tutors that match the criteria
-    const { data: tutors, error } = await supabase
-      .from("tutor_profiles")
-      .select("*")
-      .contains("subjects", request.subjects)
-      .gte("hourly_rate", request.budget_min / 4) // Assuming 4 hours per month minimum
-      .lte("hourly_rate", request.budget_max / 4)
-      .eq("location", request.location);
-
-    if (error) {
-      toast.error("Error finding matches");
-      return;
-    }
-
-    // Create matches for compatible tutors
-    const matchPromises = tutors.map(tutor =>
-      supabase.from("matches").insert([
-        {
-          request_id: request.id,
-          tutor_id: tutor.id,
-          status: "pending",
-          created_at: new Date().toISOString(),
-        },
-      ])
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-beige p-6">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <Skeleton className="h-8 w-48" />
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <Skeleton className="h-6 w-36" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+      </div>
     );
-
-    await Promise.all(matchPromises);
-    toast.success("Found potential matches!");
-  };
+  }
 
   return (
     <div className="min-h-screen bg-beige p-6">
@@ -169,8 +220,8 @@ const ParentDashboard = () => {
                 }
               />
             </div>
-            <Button type="submit" className="bg-brown hover:bg-brown/90" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Request"}
+            <Button type="submit" className="bg-brown hover:bg-brown/90" disabled={submitting}>
+              {submitting ? "Submitting..." : "Submit Request"}
             </Button>
           </form>
         </div>
